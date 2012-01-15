@@ -1409,7 +1409,7 @@ static void forstat (LexState *ls, int line) {
 /* return: useBracket */
 static int test_then_block (LexState *ls, int *escapelist) {
   /* test_then_block -> [IF | ELSEIF] cond THEN block */
-  /* test_then_block -> [IF | ELSEIF] cond { block */
+  /* test_then_block -> [IF | ELSEIF] cond { block } */
   BlockCnt bl;
   FuncState *fs = ls->fs;
   expdesc v;
@@ -1454,13 +1454,15 @@ static void ifstat (LexState *ls, int line) {
   FuncState *fs = ls->fs;
   int escapelist = NO_JUMP;  /* exit list for finished parts */
   int useBracket = 0;
-  test_then_block(ls, &escapelist);  /* IF cond THEN block */
+  useBracket = test_then_block(ls, &escapelist);  /* IF cond THEN block */
   while(ls->t.token == TK_ELSEIF) {
-    test_then_block(ls, &escapelist);  /* ELSEIF cond THEN block */
+    useBracket = test_then_block(ls, &escapelist);  /* ELSEIF cond THEN block */
   }
   if (testnext(ls, TK_ELSE)) {
     useBracket = testnext(ls, '{');
     block(ls);  /* `else' part */
+    if(useBracket)
+      check_match(ls, '}', '{', line);
   }
   if (!useBracket)
     check_match(ls, TK_END, TK_IF, line);
