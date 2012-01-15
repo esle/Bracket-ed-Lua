@@ -1271,14 +1271,20 @@ static void whilestat (LexState *ls, int line) {
 
 static void repeatstat (LexState *ls, int line) {
   /* repeatstat -> REPEAT block UNTIL cond */
+  /* repeatstat -> REPEAT `{' block `}' UNTIL cond */
   int condexit;
   FuncState *fs = ls->fs;
   int repeat_init = luaK_getlabel(fs);
+  int useBracket = 0;
   BlockCnt bl1, bl2;
   enterblock(fs, &bl1, 1);  /* loop block */
   enterblock(fs, &bl2, 0);  /* scope block */
   luaX_next(ls);  /* skip REPEAT */
+  if (testnext( ls, '{' ) )
+      useBracket = 1;
   statlist(ls);
+  if (useBracket)
+      check_match(ls, '}', '{', line);
   check_match(ls, TK_UNTIL, TK_REPEAT, line);
   condexit = cond(ls);  /* read condition (inside scope block) */
   if (bl2.upval)  /* upvalues? */
@@ -1400,23 +1406,28 @@ static void forstat (LexState *ls, int line) {
   leaveblock(fs);  /* loop scope (`break' jumps to this point) */
 }
 
-
-static void test_then_block (LexState *ls, int *escapelist) {
+/* return: useBracket */
+static int test_then_block (LexState *ls, int *escapelist) {
   /* test_then_block -> [IF | ELSEIF] cond THEN block */
+  /* test_then_block -> [IF | ELSEIF] cond { block */
   BlockCnt bl;
   FuncState *fs = ls->fs;
   expdesc v;
+  int useBracket = 0;
   int jf;  /* instruction to skip 'then' code (if condition is false) */
   luaX_next(ls);  /* skip IF or ELSEIF */
   expr(ls, &v);  /* read condition */
-  checknext(ls, TK_THEN);
+  if( testnext(ls, '{') )
+    useBracket = 1;
+  else
+    checknext(ls, TK_THEN);
   if (ls->t.token == TK_GOTO || ls->t.token == TK_BREAK) {
     luaK_goiffalse(ls->fs, &v);  /* will jump to label if condition is true */
     enterblock(fs, &bl, 0);  /* must enter block before 'goto' */
     gotostat(ls, v.t);  /* handle goto/break */
     if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
       leaveblock(fs);
-      return;  /* and that is it */
+      return useBracket;  /* and that is it */
     }
     else  /* must skip over 'then' part if condition is false */
       jf = luaK_jump(fs);
@@ -1428,10 +1439,13 @@ static void test_then_block (LexState *ls, int *escapelist) {
   }
   statlist(ls);  /* `then' part */
   leaveblock(fs);
+  if(useBracket)
+    check_match(ls, '}', '{', ls->linenumber);
   if (ls->t.token == TK_ELSE ||
       ls->t.token == TK_ELSEIF)  /* followed by 'else'/'elseif'? */
     luaK_concat(fs, escapelist, luaK_jump(fs));  /* must jump over it */
   luaK_patchtohere(fs, jf);
+  return useBracket;
 }
 
 
@@ -1439,12 +1453,17 @@ static void ifstat (LexState *ls, int line) {
   /* ifstat -> IF cond THEN block {ELSEIF cond THEN block} [ELSE block] END */
   FuncState *fs = ls->fs;
   int escapelist = NO_JUMP;  /* exit list for finished parts */
+  int useBracket = 0;
   test_then_block(ls, &escapelist);  /* IF cond THEN block */
-  while (ls->t.token == TK_ELSEIF)
+  while(ls->t.token == TK_ELSEIF) {
     test_then_block(ls, &escapelist);  /* ELSEIF cond THEN block */
-  if (testnext(ls, TK_ELSE))
+  }
+  if (testnext(ls, TK_ELSE)) {
+    useBracket = testnext(ls, '{');
     block(ls);  /* `else' part */
-  check_match(ls, TK_END, TK_IF, line);
+  }
+  if (!useBracket)
+    check_match(ls, TK_END, TK_IF, line);
   luaK_patchtohere(fs, escapelist);  /* patch escape list to 'if' end */
 }
 
