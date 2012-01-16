@@ -3,6 +3,8 @@ About
 
 Based on Lua 5.2.0
 
+Compatible with original Lua - **except for one thing: you cannot do** ``f{x=1,y=2}`` **stuff now, use** ``f({x=1,y=2})`` **instead**
+
 Done some tweaks on lparser.c and nothing else
 
 Why
@@ -31,6 +33,9 @@ Samples
     for i=1,10 {
         print(g())
     }
+    for i=1,10 do
+        print(g())
+    end
 
 
 ::
@@ -50,5 +55,5 @@ Samples
 State
 ========
 
-Almost working
+Working well - I think
 
