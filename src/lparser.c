@@ -1427,6 +1427,8 @@ static int test_then_block (LexState *ls, int *escapelist) {
     gotostat(ls, v.t);  /* handle goto/break */
     if (block_follow(ls, 0)) {  /* 'goto' is the entire block? */
       leaveblock(fs);
+      if(useBracket)
+        check_match(ls, '}', '{', ls->linenumber);
       return useBracket;  /* and that is it */
     }
     else  /* must skip over 'then' part if condition is false */
