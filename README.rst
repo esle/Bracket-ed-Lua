@@ -1,7 +1,7 @@
 About
 =======
 
-Based on Lua 5.2.0
+Based on Lua 5.2.2
 
 Compatible with original Lua - **except for one thing: you cannot do** ``f{x=1,y=2}`` **stuff now, use** ``f({x=1,y=2})`` **instead**
 
